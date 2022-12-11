@@ -1,0 +1,72 @@
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.medium
+      ImageId: ami-094125af156557ca2
+      KeyName: us-west-2-key
+      SecurityGroupIds:
+        - !Ref ServerSecurityGroup
+      UserData: !Base64 |
+        #!/bin/bash
+        yum update -y
+        yum install httpd -y
+        systemctl start httpd
+        systemctl enable httpd
+
+  ServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow HTTP and SSH access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+Outputs:
+  ServerId:
+    Value:
+      Ref: EC2Instance
+
+  SecGrpRef:
+    Value: !Ref ServerSecurityGroup
+
+  PublicServerDNS:
+    Value: !GetAtt EC2Instance.PublicDnsName
+
+  PrivateServerDNS:
+    Value:
+      Fn::GetAtt:
+        - EC2Instance
+        - PrivateDnsName
+
+  RegionAZs:
+    Value:
+      Fn::Join:
+        - ', '
+        - !GetAZs ''
+  
+  FirstAZ:
+    Value:
+      Fn::Select:
+      - 0
+      - !GetAZs ''
+
+  SecondAZ:
+    Value: !Select [1, !GetAZs '']
+  
+  ImportedValue:
+    Value: !ImportValue ExportedValue
+
+  Substring:
+    Value:
+      Fn::Sub:
+      - 'Instance ${InstanceId} has Public DNS Name ${InstancePublicDNS} and has Security Group ${SecGrpId}'
+      - InstanceId: !Ref EC2Instance
+        InstancePublicDNS: !GetAtt EC2Instance.PublicDnsName
+        SecGrpId: !GetAtt ServerSecurityGroup.GroupId
